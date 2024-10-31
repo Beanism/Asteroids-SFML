@@ -346,7 +346,7 @@ int main(){
 	const double MAX_FPS = 60;
 	SpaceShip Player;
 	Player.Ship.setPosition(WINDOW_LENGTH/2, WINDOW_HEIGHT/2);
-	double ASTEROID_SPAWN_TIME = 5;
+	double ASTEROID_SPAWN_TIME = 3;
 	double AsteroidSpawnCooldown=0;
 	const double MIN_ASTEROID_SPAWN_TIME = 0.5;
 	const int ASTEROID_START_SPAWN_AMOUNT=8;
@@ -390,20 +390,22 @@ int main(){
 					Score.SetScore(0);
 					GameState = WinState::Playing;
 					Player.Restart();
-					switch(rand()%5){
-						case 0:
-							SpawnAsteroid(AsteroidType::Large, sf::Vector2f(rand()%WINDOW_LENGTH, 0));
-							break;
-						case 1:
-							SpawnAsteroid(AsteroidType::Large, sf::Vector2f(rand()%WINDOW_LENGTH, WINDOW_HEIGHT));
-							break;
-						case 2:
-							SpawnAsteroid(AsteroidType::Large, sf::Vector2f(WINDOW_LENGTH, rand()%WINDOW_HEIGHT));
-							break;
-						case 3:
-							SpawnAsteroid(AsteroidType::Large, sf::Vector2f(0, rand()%WINDOW_HEIGHT));
-							break;
-		}
+					for (int i=0; i<ASTEROID_START_SPAWN_AMOUNT; i++){
+						switch(rand()%5){
+							case 0:
+								SpawnAsteroid(AsteroidType::Large, sf::Vector2f(rand()%WINDOW_LENGTH, 0));
+								break;
+							case 1:
+								SpawnAsteroid(AsteroidType::Large, sf::Vector2f(rand()%WINDOW_LENGTH, WINDOW_HEIGHT));
+								break;
+							case 2:
+								SpawnAsteroid(AsteroidType::Large, sf::Vector2f(WINDOW_LENGTH, rand()%WINDOW_HEIGHT));
+								break;
+							case 3:
+								SpawnAsteroid(AsteroidType::Large, sf::Vector2f(0, rand()%WINDOW_HEIGHT));
+								break;
+						}
+					}
 				}
 			}
 		}
