@@ -390,6 +390,20 @@ int main(){
 					Score.SetScore(0);
 					GameState = WinState::Playing;
 					Player.Restart();
+					switch(rand()%5){
+						case 0:
+							SpawnAsteroid(AsteroidType::Large, sf::Vector2f(rand()%WINDOW_LENGTH, 0));
+							break;
+						case 1:
+							SpawnAsteroid(AsteroidType::Large, sf::Vector2f(rand()%WINDOW_LENGTH, WINDOW_HEIGHT));
+							break;
+						case 2:
+							SpawnAsteroid(AsteroidType::Large, sf::Vector2f(WINDOW_LENGTH, rand()%WINDOW_HEIGHT));
+							break;
+						case 3:
+							SpawnAsteroid(AsteroidType::Large, sf::Vector2f(0, rand()%WINDOW_HEIGHT));
+							break;
+		}
 				}
 			}
 		}
