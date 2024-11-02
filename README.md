@@ -6,7 +6,7 @@ Clone the repo `git clone https://github.com/Beanism/Asteroids-SFML/`
 
 Install SFML 2.5.1 and gcc (Or MinGW on windows)
 
-For debian based OSs `sudo apt-get install libsfml-dev`
+For debian based OSs `sudo apt-get install libsfml-dev g++`
 
 Navigate to the repo `cd ./Asteroids-SFML`
 
