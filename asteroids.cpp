@@ -34,6 +34,21 @@ enum Status {
 const int WINDOW_LENGTH = 800;
 const int WINDOW_HEIGHT = 600; # Self explanitory.
 
+
+void ScreenWrap(sf::Transformable &Transformable) {
+	if (Transformable.getPosition().y > WINDOW_HEIGHT){
+		Transformable.setPosition(sf::Vector2f(Transformable.getPosition().x, 0));
+	} else if (Transformable.getPosition().y < 0){
+		Transformable.setPosition(sf::Vector2f(Transformable.getPosition().x, WINDOW_HEIGHT));
+	}
+	if (Transformable.getPosition().x > WINDOW_LENGTH){
+		Transformable.setPosition(sf::Vector2f(0, Transformable.getPosition().y));
+	} else if (Transformable.getPosition().x <0){
+		Transformable.setPosition(sf::Vector2f(WINDOW_LENGTH, Transformable.getPosition().y));
+	}
+}
+
+
 class RocketClass { // Class all the player-spawned projectiles follow
 	private:
 		double MOVE_SPD=500; // Speed of the rocket.
@@ -53,18 +68,7 @@ class RocketClass { // Class all the player-spawned projectiles follow
 		}
 		Status Update(double TimeFrame){ // Updates the rocket. Does NOT check for asteroid collisions.
 			Rocket.move(MOVE_SPD*TimeFrame*cos(ROTATION_RAD), MOVE_SPD*TimeFrame*sin(ROTATION_RAD)); // Moving the rocket.
-			if (Rocket.getPosition().y > WINDOW_HEIGHT){ // Delete if crossing window borders.
-				return Status::Remove; 
-			}
-			if (Rocket.getPosition().y < 0){ // Delete if crossing window borders.
-				return Status::Remove;
-			}
-			if (Rocket.getPosition().x > WINDOW_LENGTH){// Delete if crossing window borders.
-				return Status::Remove;
-			}
-			if (Rocket.getPosition().x <0){// Delete if crossing window borders.
-				return Status::Remove;
-			}
+			ScreenWrap(Rocket);
 			return Status::Keep; // If no collisions with windows, the rocket persists.
 		}
 };
@@ -171,18 +175,7 @@ class AsteroidClass { // Class of all the asteroids. Should probably be optimise
 			Asteroid.rotate(ROTATE_SPD);
 			const int Degrees_Rotation = DIRECTION*180/3.14159265; // Converting to radians.
 			Asteroid.move(VELOCITY*FrameTime*cos(Degrees_Rotation), VELOCITY*FrameTime*sin(Degrees_Rotation)); // Translating degrees in radians to gradient via sine and cosine. Allows moving in x direction.
-			if (Asteroid.getPosition().y > WINDOW_HEIGHT){
-				Asteroid.setPosition(sf::Vector2f(Asteroid.getPosition().x, 0));
-			}
-			if (Asteroid.getPosition().y < 0){
-				Asteroid.setPosition(sf::Vector2f(Asteroid.getPosition().x, WINDOW_HEIGHT));
-			}
-			if (Asteroid.getPosition().x > WINDOW_LENGTH){
-				Asteroid.setPosition(sf::Vector2f(0, Asteroid.getPosition().y));
-			}
-			if (Asteroid.getPosition().x <0){
-				Asteroid.setPosition(sf::Vector2f(WINDOW_LENGTH, Asteroid.getPosition().y));
-			}
+			ScreenWrap(Asteroid);
 			for (int i=0; i<GlobalRockets.size(); i++){ // To be honest, I should probably optimise this. Each asteroid, (usually >20) is looping through a vector of usually large proportions.
 				if (GlobalRockets.at(i).Rocket.getGlobalBounds().intersects(Asteroid.getGlobalBounds())){ // If asteroid and rocket intersect,
 					return std::make_pair(Status::Remove, i); // Delete offending rocket. The function using this also breaks open the victimised asteroid. Probably should shift it up here.
@@ -288,18 +281,7 @@ class SpaceShip { // Player class.
 			Degrees_Rad = Ship.getRotation() *3.14159/180; // Converted to radians.
 			Ship.move(sf::Vector2f(Velocity*FrameTime*FRAME_TIME_MULTIP*cos(Degrees_Rad), Velocity*FrameTime*FRAME_TIME_MULTIP*sin(Degrees_Rad))); // Converted to gradiant through sine and cosine
 
-			if (Ship.getPosition().y > WINDOW_HEIGHT){
-				Ship.setPosition(sf::Vector2f(Ship.getPosition().x, 0)); // Looping through sides of window. Looks REALLY smooth at certain speeds.
-			}
-			if (Ship.getPosition().y < 0){
-				Ship.setPosition(sf::Vector2f(Ship.getPosition().x, WINDOW_HEIGHT)); // Looping through sides of window.
-			}
-			if (Ship.getPosition().x > WINDOW_LENGTH){
-				Ship.setPosition(sf::Vector2f(0, Ship.getPosition().y));  // Looping through sides of window.
-			}
-			if (Ship.getPosition().x <0){
-				Ship.setPosition(sf::Vector2f(WINDOW_LENGTH, Ship.getPosition().y)); // Looping through sides of window.
-			}
+			ScreenWrap(Ship);
 			std::vector<Status> RocketStatus; // Added into this vector so that they can be removed later. Removing elements whilst looping introduces you to your amazing friend, Segmentation fault!
 			for (int i=0;i<GlobalRockets.size();i++){
 				RocketStatus.push_back(GlobalRockets.at(i).Update(FrameTime)); // Updating rockets. I like how this is in the player class. Very ergonomic.
