@@ -1,4 +1,3 @@
-#include <iostream>
 #include <SFML/Graphics.hpp> // Graphical library of choice.
 #include <cmath> // Sine and cosine. For converting direction into a gradient.
 #include <vector> // Stores all objects, such as the asteroids, and rockets.
@@ -32,13 +31,13 @@ enum Status {
 };
 
 const int WINDOW_LENGTH = 800;
-const int WINDOW_HEIGHT = 600; # Self explanitory.
+const int WINDOW_HEIGHT = 600; // Self explanitory.
 
 class RocketClass { // Class all the player-spawned projectiles follow
 	private:
 		double MOVE_SPD=500; // Speed of the rocket.
 		double ROTATION_RAD; // The direction of the rocket, in radians. For usage with sine and cosine.
-		double OUTLINE_THICKNESS=1.5; # Visual outline thickness of the rocket.
+		double OUTLINE_THICKNESS=1.5; // Visual outline thickness of the rocket.
 		float SIZE=3; // The size of the rocket. Does NOT change the shape.
 	public:
 		sf::CircleShape Rocket; // Actual rocket entity.
@@ -101,7 +100,7 @@ class AsteroidClass { // Class of all the asteroids. Should probably be optimise
 					Asteroid.setPointCount(16); // Setting point count. I spent a few days wondering why I would get 16 different memory errors from these... Do not set it to a too low point count.
 					Asteroid.setPoint(0, sf::Vector2f(-2*SIZE_MULTIP, -5*SIZE_MULTIP));
 					Asteroid.setPoint(1, sf::Vector2f(0*SIZE_MULTIP, -5*SIZE_MULTIP));
-					Asteroid.setPoint(2, sf::Vector2f(0*SIZE_MULTIP, -5*SIZE_MULTIP));
+					Asteroid.setPoint(2, sf::Vector2f(1*SIZE_MULTIP, -5*SIZE_MULTIP));
 					Asteroid.setPoint(3, sf::Vector2f(2*SIZE_MULTIP, -4*SIZE_MULTIP));	
 					Asteroid.setPoint(4, sf::Vector2f(4*SIZE_MULTIP, -2*SIZE_MULTIP));
 					Asteroid.setPoint(5, sf::Vector2f(4*SIZE_MULTIP, 2*SIZE_MULTIP));
@@ -212,6 +211,43 @@ class ScoreClass { // Class displaying player score. Keeps track of as well as v
 		}
 };
 
+
+// Proper collision using the seperating axis theorem,
+// adapted from https://github.com/aydincpp/Separating-Axis-Theorem
+
+// Function to project a polygon onto an axis and get the minimum and maximum values
+void projectOntoAxis(sf::ConvexShape &ConvexShape, const sf::Vector2f& Axis, float& Min, float& Max)
+{
+	sf::Vector2f Vertex = ConvexShape.getTransform() * ConvexShape.getPoint(0);
+    Min = Max = Vertex.x * Axis.x + Vertex.y * Axis.y;
+    for (size_t i = 1; i < ConvexShape.getPointCount(); ++i)
+    {
+		Vertex = ConvexShape.getTransform() * ConvexShape.getPoint(i);
+        float Projection = Vertex.x * Axis.x + Vertex.y * Axis.y;
+        if (Projection < Min) Min = Projection;
+        if (Projection > Max) Max = Projection;
+    }
+}
+
+bool TestAxis(sf::ConvexShape &ConvexShape1, sf::ConvexShape &ConvexShape2, size_t i) {
+	sf::Vector2f Edge =
+		ConvexShape1.getTransform() * ConvexShape1.getPoint((i + 1) % ConvexShape1.getPointCount())
+		- ConvexShape1.getTransform() * ConvexShape1.getPoint(i);
+
+	sf::Vector2f Axis = sf::Vector2f(-Edge.y, Edge.x) / sqrtf(Edge.x * Edge.x + Edge.y * Edge.y);
+
+	float MinA, MaxA, MinB, MaxB;
+	projectOntoAxis(ConvexShape1, Axis, MinA, MaxA);
+	projectOntoAxis(ConvexShape2, Axis, MinB, MaxB);
+
+	if (MaxA < MinB | MaxB < MinA) {
+		return true; // No collision if there's a gap
+	}
+
+	return false;
+}
+
+
 class SpaceShip { // Player class.
 	private: // Most of these are self-explanitory.
 		const Turn TURN_TYPE = Turn::Static; 
@@ -219,14 +255,13 @@ class SpaceShip { // Player class.
 		const int SIZE_MULTIP=4;
 		const double ACCELERATION_SPD=0.02;
 		const double DECELERATION_SPD=0.018;
-		const double MAX_SPD = 4; 
+		const float MAX_SPD = 4;
 		double TURN_SPD=2.5;
 		const double GLIDE_TURN_SPD = 0.07; // For use with Turn::Glide
 		const double MAX_TURN_SPD = 7.5;
-		double Velocity =0; // Velocity of the player
+		sf::Vector2f Velocity; // Velocity of the player
 		double TurnVelocity =0; // Turn velocity of the player. Used only with Turn::Glide.
-		double Degrees_Rad = 0; // For usage with sine and cosine
-		const double FRAME_TIME_MULTIP=75; // Set to the time since last frame. Makes 
+		const float FRAME_TIME_MULTIP=75; // Set to the time since last frame. Makes
 		bool SpaceKeyPressed = false; // For shooting rocket.
 	public:
 		sf::ConvexShape Ship{(5)}; // Actual ship. '5' defines the amount of points. It's just a sort of futuristic cursor shape. Like the stellaris one.
@@ -243,19 +278,29 @@ class SpaceShip { // Player class.
 				TURN_SPD = GLIDE_TURN_SPD; // For glidey turning.
 			}
 		}
-		WinState Update(double FrameTime, sf::RenderWindow &Window){ // Update function. Contains input usage, etc. For those Vim users, of course it contains a Vim control scheme.
-			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) || sf::Keyboard::isKeyPressed(sf::Keyboard::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::K)){ // Forward
-				Velocity+=ACCELERATION_SPD;	
-				if (Velocity > MAX_SPD){
-					Velocity = MAX_SPD;
-				}
+		WinState Update(float FrameTime, sf::RenderWindow &Window){ // Update function. Contains input usage, etc. For those Vim users, of course it contains a Vim control scheme.
+			double Acceleration = (
+				sf::Keyboard::isKeyPressed(sf::Keyboard::Up)
+					|| sf::Keyboard::isKeyPressed(sf::Keyboard::W)
+					|| sf::Keyboard::isKeyPressed(sf::Keyboard::K)
+					? ACCELERATION_SPD
+					: 0
+			);
+
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)
+				|| sf::Keyboard::isKeyPressed(sf::Keyboard::S)
+				|| sf::Keyboard::isKeyPressed(sf::Keyboard::J)
+			)
+				Acceleration -= DECELERATION_SPD;
+
+			if (Acceleration) {
+				Velocity.x += Acceleration * cospi(Ship.getRotation() / 180);
+				Velocity.y += Acceleration * sinpi(Ship.getRotation() / 180);
+				float MagnitudeSqared = Velocity.y * Velocity.y + Velocity.y * Velocity.y;
+				if (MagnitudeSqared > MAX_SPD * MAX_SPD)
+					Velocity *= (MAX_SPD / sqrtf(MagnitudeSqared));
 			}
-			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) || sf::Keyboard::isKeyPressed(sf::Keyboard::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::J)){ // Backward
-				Velocity-=DECELERATION_SPD;
-				if (Velocity < MAX_SPD*-1){
-					Velocity=MAX_SPD*-1;
-				}
-			}
+
 			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::L)){ // Right
 			TurnVelocity+=TURN_SPD;	
 				if (TurnVelocity >= MAX_TURN_SPD){
@@ -285,8 +330,7 @@ class SpaceShip { // Player class.
 					Ship.rotate(TurnVelocity*(FrameTime*FRAME_TIME_MULTIP)); // Literally just Turn::Static but it doesn't reset turn velocity.
 					break;
 			}
-			Degrees_Rad = Ship.getRotation() *3.14159/180; // Converted to radians.
-			Ship.move(sf::Vector2f(Velocity*FrameTime*FRAME_TIME_MULTIP*cos(Degrees_Rad), Velocity*FrameTime*FRAME_TIME_MULTIP*sin(Degrees_Rad))); // Converted to gradiant through sine and cosine
+			Ship.move(Velocity*FrameTime*FRAME_TIME_MULTIP);
 
 			if (Ship.getPosition().y > WINDOW_HEIGHT){
 				Ship.setPosition(sf::Vector2f(Ship.getPosition().x, 0)); // Looping through sides of window. Looks REALLY smooth at certain speeds.
@@ -314,15 +358,21 @@ class SpaceShip { // Player class.
 					}
 				}
 			}
-			for (int i=0; i<GlobalAsteroids.size();i++){
-				if (Ship.getGlobalBounds().intersects(GlobalAsteroids.at(i).Asteroid.getGlobalBounds())){ // Detect if player ship touches asteroid.
-					return WinState::Loss; // End game.
-				}
+			for (int i = 0; i < GlobalAsteroids.size();){
+				for (size_t j = 0; j < Ship.getPointCount(); ++j)
+					if (TestAxis(Ship, GlobalAsteroids[i].Asteroid, j))
+						goto outer_loop;
+				for (size_t j = 0; j < GlobalAsteroids[i].Asteroid.getPointCount(); ++j)
+					if (TestAxis(GlobalAsteroids[i].Asteroid, Ship, j))
+						goto outer_loop;
+
+				return WinState::Loss; // Collision detected
+outer_loop:		++i;
 			}
 			return WinState::Playing;
 		}
 		void Restart(){ // Function to be called one the game is restarted.
-			Velocity = 0;
+			Velocity = sf::Vector2f();
 			TurnVelocity= 0;
 			Ship.setRotation(0);
 			Ship.setPosition(WINDOW_LENGTH/2, WINDOW_HEIGHT/2);
@@ -441,8 +491,7 @@ int main(){
 			if (GameState == WinState::Loss){
 				Window.draw(GameStateText);
 				Window.draw(GameStateSub);
-			}
-			if (GameState != WinState::Loss){
+			} else {
 				GameState = Player.Update(FrameTime.getElapsedTime().asSeconds(), Window);
 				UpdateAsteroids(FrameTime.getElapsedTime().asSeconds(), Window, Score);
 			}
